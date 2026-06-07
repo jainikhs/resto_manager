@@ -18,6 +18,14 @@ jobs:
                 host: ${{ secrets.EC2_HOST }}
                 username: ${{ secrets.EC2_USERNAME }}
                 key: ${{ secrets.EC2_SSH_KEY }}
+                script: |
+                    git clone https://github.com/jainikhs/resto_manager.git
+                    cd ~/resto_manager
+                    git pull origin main
+                    docker compose pull
+                    docker compose up -d
+
+
 
 
 
