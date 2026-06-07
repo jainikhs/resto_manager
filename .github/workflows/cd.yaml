@@ -1,0 +1,25 @@
+name: CD Workflows
+
+on:
+    workflow_run:
+        workflows: ["ci workflows"]
+        types:
+          - completed
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        steps:
+           - uses: actions/checkout@v4
+
+           - name: Execute remote command to connect with server
+             uses: appleboy/ssh-action@v1.0.3
+             with:
+                host: ${{ secrets.EC2_HOST }}
+                username: ${{ secrets.EC2_USERNAME }}
+                key: ${{ secrets.EC2_SSH_KEY }}
+
+
+
+
+
