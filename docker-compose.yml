@@ -1,0 +1,79 @@
+version: "3.9"
+
+services:
+
+  # ── MySQL Database ────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: resto_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-StrongRootPass123!}
+      MYSQL_DATABASE: resto_manager
+      MYSQL_USER: ${MYSQL_USER:-restouser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-StrongPass123!}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    ports:
+      - "3306:3306"          # expose only if you need external DB access; remove in prod
+    networks:
+      - resto_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-StrongRootPass123!}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Node.js / Express Backend ─────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resto_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-restouser}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-StrongPass123!}
+      DB_NAME: resto_manager
+      JWT_SECRET: ${JWT_SECRET:-change_this_secret_min_32_chars_long}
+      JWT_EXPIRES_IN: 7d
+    networks:
+      - resto_net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── React Frontend (Nginx) ─────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: resto_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - resto_net
+
+networks:
+  resto_net:
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local
